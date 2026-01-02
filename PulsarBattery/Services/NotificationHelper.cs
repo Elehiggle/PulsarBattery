@@ -1,7 +1,6 @@
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace PulsarBattery.Services;
@@ -75,18 +74,30 @@ internal static class NotificationHelper
 
         try
         {
-            var title = "Battery level changed";
-            var line1 = string.IsNullOrWhiteSpace(model) ? $"From {previousPercentage}% to {currentPercentage}%" : $"{model}: From {previousPercentage}% to {currentPercentage}%";
-            var line2 = isCharging ? "Charging" : "Not charging";
+            // Determine notification scenario
+            var isLowBattery = currentPercentage < 20 && !isCharging;
+            var isCriticalBattery = currentPercentage < 10 && !isCharging;
+            
+            // Build title based on battery state
+            var title = isCriticalBattery ? "Critical Battery Level" :
+                       isLowBattery ? "Low Battery" :
+                       isCharging ? "Charging" :
+                       "Battery Update";
+
+            // Build device info line
+            var deviceLine = string.IsNullOrWhiteSpace(model) ? 
+                $"Battery: {currentPercentage}%" : 
+                $"{model}: {currentPercentage}%";
+
+            // Build status line with charging state
+            var statusLine = isCharging ? 
+                "Currently charging" : 
+                $"Not charging - {GetBatteryChangeText(previousPercentage, currentPercentage)}";
 
             var notification = new AppNotificationBuilder()
-                .AddArgument("action", "batteryChanged")
-                .AddArgument("source", "PulsarBattery")
-                .AddArgument("from", previousPercentage.ToString())
-                .AddArgument("to", currentPercentage.ToString())
                 .AddText(title)
-                .AddText(line1)
-                .AddText(line2)
+                .AddText(deviceLine)
+                .AddText(statusLine)
                 .BuildNotification();
 
             AppNotificationManager.Default.Show(notification);
@@ -94,6 +105,24 @@ internal static class NotificationHelper
         catch (Exception ex)
         {
             Debug.WriteLine($"Battery notification failed: {ex}");
+        }
+    }
+
+    private static string GetBatteryChangeText(int previousPercentage, int currentPercentage)
+    {
+        var change = currentPercentage - previousPercentage;
+        
+        if (change > 0)
+        {
+            return $"+{change}% since last update";
+        }
+        else if (change < 0)
+        {
+            return $"{change}% since last update";
+        }
+        else
+        {
+            return "No change";
         }
     }
 }
