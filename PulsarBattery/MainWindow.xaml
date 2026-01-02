@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="PulsarBattery.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PulsarBattery"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="PulsarBattery">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base" />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid" Padding="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar x:Name="AppTitleBar" Title="Pulsar Battery">
+            <TitleBar.IconSource>
+                <FontIconSource Glyph="&#xF4AA;" />
+            </TitleBar.IconSource>
+        </TitleBar>
+
+        <Grid Grid.Row="1">
+            <NavigationView x:Name="NavView"
+                            PaneTitle="Pulsar Battery"
+                            IsSettingsVisible="False"
+                            PaneDisplayMode="LeftCompact"
+                            IsPaneToggleButtonVisible="False"
+                            IsBackButtonVisible="Collapsed"
+                            IsTitleBarAutoPaddingEnabled="False"
+                            SelectionChanged="NavView_SelectionChanged"
+                            IsPaneOpen="False"
+                            SelectionFollowsFocus="Enabled">
+
+                <NavigationView.Resources>
+                    <!-- Reduce the built-in header padding so content aligns naturally. -->
+                    <Thickness x:Key="NavigationViewHeaderMargin">0</Thickness>
+                </NavigationView.Resources>
+
+                <NavigationView.MenuItems>
+                    <NavigationViewItem x:Name="DashboardItem" Content="Dashboard" Icon="Home" Tag="dashboard" />
+                    <NavigationViewItem Content="History">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE81C;" />
+                        </NavigationViewItem.Icon>
+                        <NavigationViewItem.Tag>history</NavigationViewItem.Tag>
+                    </NavigationViewItem>
+                    <NavigationViewItem Content="Settings" Icon="Setting" Tag="settings" />
+                </NavigationView.MenuItems>
+
+                <NavigationView.Header>
+                    <Grid Margin="32,16,32,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Vertical" Spacing="2">
+                            <TextBlock x:Name="HeaderTitle" Text="Dashboard" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock Text="{Binding ModelName}" Opacity="0.7" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                </NavigationView.Header>
+
+                <Frame x:Name="ContentFrame" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+            </NavigationView>
+        </Grid>
+    </Grid>
+</Window>

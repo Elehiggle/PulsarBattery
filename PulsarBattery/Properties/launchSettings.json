@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PulsarBattery (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "PulsarBattery (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
