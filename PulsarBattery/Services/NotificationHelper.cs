@@ -2,6 +2,7 @@ using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 using System;
 using System.Diagnostics;
+using System.IO;
 
 namespace PulsarBattery.Services;
 
@@ -12,22 +13,25 @@ internal static class NotificationHelper
 
     public static void Init()
     {
-        if (_initialized)
-        {
-            return;
-        }
-
-        _initialized = true;
-
         try
         {
             var manager = AppNotificationManager.Default;
 
-            // Per quickstart: always hook before Register() so handling stays in this process.
-            manager.NotificationInvoked += (_, args) =>
+            if (!_initialized)
             {
-                Debug.WriteLine($"Notification invoked: {args.Argument}");
-            };
+                // Per quickstart: always hook before Register() so handling stays in this process.
+                manager.NotificationInvoked += (_, args) =>
+                {
+                    Debug.WriteLine($"Notification invoked: {args.Argument}");
+                };
+
+                _initialized = true;
+            }
+
+            if (_registered)
+            {
+                return;
+            }
 
             manager.Register();
             _registered = true;
@@ -62,10 +66,7 @@ internal static class NotificationHelper
 
     public static void NotifyBatteryLevelChanged(int previousPercentage, int currentPercentage, bool isCharging, string? model)
     {
-        if (!_initialized)
-        {
-            Init();
-        }
+        Init();
 
         if (!_registered)
         {
@@ -74,31 +75,29 @@ internal static class NotificationHelper
 
         try
         {
-            // Determine notification scenario
-            var isLowBattery = currentPercentage < 20 && !isCharging;
-            var isCriticalBattery = currentPercentage < 10 && !isCharging;
-            
-            // Build title based on battery state
-            var title = isCriticalBattery ? "Critical Battery Level" :
-                       isLowBattery ? "Low Battery" :
-                       isCharging ? "Charging" :
-                       "Battery Update";
+            var title = isCharging ? "Charging" : "Battery Update";
 
             // Build device info line
             var deviceLine = string.IsNullOrWhiteSpace(model) ? 
                 $"Battery: {currentPercentage}%" : 
                 $"{model}: {currentPercentage}%";
 
-            // Build status line with charging state
-            var statusLine = isCharging ? 
-                "Currently charging" : 
-                $"Not charging - {GetBatteryChangeText(previousPercentage, currentPercentage)}";
+            var statusLine = isCharging
+                ? $"Currently charging - {GetBatteryChangeText(previousPercentage, currentPercentage)}"
+                : $"Not charging - {GetBatteryChangeText(previousPercentage, currentPercentage)}";
 
-            var notification = new AppNotificationBuilder()
+            var builder = new AppNotificationBuilder()
                 .AddText(title)
                 .AddText(deviceLine)
-                .AddText(statusLine)
-                .BuildNotification();
+                .AddText(statusLine);
+
+            var appLogoUri = TryGetNotificationLogoUri();
+            if (appLogoUri is not null)
+            {
+                builder.SetAppLogoOverride(appLogoUri);
+            }
+
+            var notification = builder.BuildNotification();
 
             AppNotificationManager.Default.Show(notification);
         }
@@ -123,6 +122,109 @@ internal static class NotificationHelper
         else
         {
             return "No change";
+        }
+    }
+
+    private static Uri? TryGetNotificationLogoUri()
+    {
+        var assetDir = Path.Combine(AppContext.BaseDirectory, "Assets");
+        if (!Directory.Exists(assetDir))
+        {
+            return null;
+        }
+
+        var preferred = new[]
+        {
+            "icon.png",
+            "AppIcon.png",
+            "pulsar.png",
+            "Square44x44Logo.scale-200.png",
+            "Square44x44Logo.png",
+        };
+
+        string? assetPath = null;
+        foreach (var name in preferred)
+        {
+            var candidate = Path.Combine(assetDir, name);
+            if (File.Exists(candidate))
+            {
+                assetPath = candidate;
+                break;
+            }
+        }
+
+        if (assetPath is null)
+        {
+            foreach (var file in Directory.EnumerateFiles(assetDir, "*.png", SearchOption.TopDirectoryOnly))
+            {
+                assetPath = file;
+                break;
+            }
+        }
+
+        if (assetPath is null)
+        {
+            return null;
+        }
+
+        if (IsPackaged())
+        {
+            var fileName = Path.GetFileName(assetPath);
+            return new Uri($"ms-appx:///Assets/{fileName}");
+        }
+
+        return new Uri(assetPath);
+    }
+
+    private static bool IsPackaged()
+    {
+        try
+        {
+            _ = Windows.ApplicationModel.Package.Current;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static void NotifyLowBattery(int batteryPercentage, int thresholdPercent, string? model)
+    {
+        Init();
+
+        if (!_registered)
+        {
+            return;
+        }
+
+        try
+        {
+            var title = "Low Battery";
+
+            var deviceLine = string.IsNullOrWhiteSpace(model)
+                ? $"Battery: {batteryPercentage}%"
+                : $"{model}: {batteryPercentage}%";
+
+            var statusLine = $"Not charging (threshold: {thresholdPercent}%)";
+
+            var builder = new AppNotificationBuilder()
+                .AddText(title)
+                .AddText(deviceLine)
+                .AddText(statusLine);
+
+            var appLogoUri = TryGetNotificationLogoUri();
+            if (appLogoUri is not null)
+            {
+                builder.SetAppLogoOverride(appLogoUri);
+            }
+
+            var notification = builder.BuildNotification();
+            AppNotificationManager.Default.Show(notification);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Low-battery notification failed: {ex}");
         }
     }
 }
