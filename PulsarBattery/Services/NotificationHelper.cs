@@ -2,6 +2,7 @@ using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 using System;
 using System.Diagnostics;
+using System.IO;
 
 namespace PulsarBattery.Services;
 
@@ -94,11 +95,18 @@ internal static class NotificationHelper
                 "Currently charging" : 
                 $"Not charging - {GetBatteryChangeText(previousPercentage, currentPercentage)}";
 
-            var notification = new AppNotificationBuilder()
+            var builder = new AppNotificationBuilder()
                 .AddText(title)
                 .AddText(deviceLine)
-                .AddText(statusLine)
-                .BuildNotification();
+                .AddText(statusLine);
+
+            var appLogoUri = TryGetNotificationLogoUri();
+            if (appLogoUri is not null)
+            {
+                builder.SetAppLogoOverride(appLogoUri);
+            }
+
+            var notification = builder.BuildNotification();
 
             AppNotificationManager.Default.Show(notification);
         }
@@ -123,6 +131,70 @@ internal static class NotificationHelper
         else
         {
             return "No change";
+        }
+    }
+
+    private static Uri? TryGetNotificationLogoUri()
+    {
+        var assetDir = Path.Combine(AppContext.BaseDirectory, "Assets");
+        if (!Directory.Exists(assetDir))
+        {
+            return null;
+        }
+
+        var preferred = new[]
+        {
+            "icon.png",
+            "AppIcon.png",
+            "pulsar.png",
+            "Square44x44Logo.scale-200.png",
+            "Square44x44Logo.png",
+        };
+
+        string? assetPath = null;
+        foreach (var name in preferred)
+        {
+            var candidate = Path.Combine(assetDir, name);
+            if (File.Exists(candidate))
+            {
+                assetPath = candidate;
+                break;
+            }
+        }
+
+        if (assetPath is null)
+        {
+            foreach (var file in Directory.EnumerateFiles(assetDir, "*.png", SearchOption.TopDirectoryOnly))
+            {
+                assetPath = file;
+                break;
+            }
+        }
+
+        if (assetPath is null)
+        {
+            return null;
+        }
+
+        if (IsPackaged())
+        {
+            var fileName = Path.GetFileName(assetPath);
+            return new Uri($"ms-appx:///Assets/{fileName}");
+        }
+
+        return new Uri(assetPath);
+    }
+
+    private static bool IsPackaged()
+    {
+        try
+        {
+            _ = Windows.ApplicationModel.Package.Current;
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 }
