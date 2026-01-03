@@ -5,7 +5,7 @@ This project is a simple battery level indicator for Pulsar mice using the hidap
 ## Supported Devices
 
 - X2 CrazyLight
-- X2 v1
+- X2 V1
 
 ## Build (Visual Studio)
 
@@ -15,7 +15,7 @@ Prereqs:
 - Windows 10/11 SDK (10.0.19041.0 or newer).
 
 Steps:
-1. Open `PulsarBattery.sln`.
+1. Open `PulsarBattery.slnx`.
 2. Set configuration to `Debug` and platform to `x64`.
 3. Set `PulsarBattery` as the startup project, then run.
 
